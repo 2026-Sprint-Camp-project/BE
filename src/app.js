@@ -1,3 +1,4 @@
+const postsRouter = require("./routes/posts");
 const path = require("path");
 require("dotenv").config({
   path: path.resolve(__dirname, "../.env")
@@ -10,6 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use("/posts", postsRouter);
 
 app.get("/", (req, res) => {
   res.status(200).json({
@@ -44,33 +46,7 @@ app.get("/tables", async (req, res) => {
   }
 });
 
-app.post("/posts", async (req, res) => {
-  try {
-    const { userId, content } = req.body;
 
-    if (!userId || !content) {
-      return res.status(400).json({
-        message: "userId와 content는 필수입니다."
-      });
-    }
-
-    const [result] = await pool.query(
-      "INSERT INTO posts (user_id, content) VALUES (?, ?)",
-      [userId, content]
-    );
-
-    res.status(201).json({
-      message: "게시글 작성 성공",
-      postId: result.insertId
-    });
-  } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      message: "게시글 작성 실패"
-    });
-  }
-});
 
 app.listen(PORT, () => {
   console.log(`서버 실행: http://localhost:${PORT}`);

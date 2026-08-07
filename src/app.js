@@ -34,6 +34,44 @@ app.get("/db-test", async (req, res) => {
   }
 });
 
+app.get("/tables", async (req, res) => {
+  try {
+    const [rows] = await pool.query("SHOW TABLES");
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "테이블 조회 실패" });
+  }
+});
+
+app.post("/posts", async (req, res) => {
+  try {
+    const { userId, content } = req.body;
+
+    if (!userId || !content) {
+      return res.status(400).json({
+        message: "userId와 content는 필수입니다."
+      });
+    }
+
+    const [result] = await pool.query(
+      "INSERT INTO posts (user_id, content) VALUES (?, ?)",
+      [userId, content]
+    );
+
+    res.status(201).json({
+      message: "게시글 작성 성공",
+      postId: result.insertId
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "게시글 작성 실패"
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`서버 실행: http://localhost:${PORT}`);
 });

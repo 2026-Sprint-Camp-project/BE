@@ -5,11 +5,26 @@ require("dotenv").config({
 
 const express = require("express");
 const pool = require("./config/db");
+const postsRouter = require("./routes/posts");
+const relationRouter = require("./routes/relation");
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const authenticateToken = require("../authMiddleware");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+const JWT_SECRET = "secret_key";     //이후 .env에 보관
+const JWT_OPTIONS = {
+    expiresIn: '1h'
+}
+
+
 app.use(express.json());
+app.use("/posts", postsRouter);
+app.use("/", relationRouter);
 
 app.get("/", (req, res) => {
   res.status(200).json({
@@ -33,6 +48,18 @@ app.get("/db-test", async (req, res) => {
     });
   }
 });
+
+app.get("/tables", async (req, res) => {
+  try {
+    const [rows] = await pool.query("SHOW TABLES");
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "테이블 조회 실패" });
+  }
+});
+
+
 
 app.listen(PORT, () => {
   console.log(`서버 실행: http://localhost:${PORT}`);

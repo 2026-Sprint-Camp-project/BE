@@ -50,14 +50,14 @@ router.post('/user/:userId/follow', async (req, res) => {
         const [followData] = await pool.query(
             `SELECT *
              FROM follows
-             WHERE follower_id = ?, following_id = ?`,
+             WHERE follower_id = ? AND following_id = ?`,
              [followerId, followingId]
         );
 
         return res.status(201).json({
-            followerId : followData[0].followerId,
-            followingId : followData[0].followingId,
-            createdAt : followData[0].created_at
+            followerId : followData[0].follower_id,
+            followingId : followData[0].following_id,
+            createdAt : followData[0].followed_at
         });
     }
     catch(error){

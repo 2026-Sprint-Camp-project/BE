@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
+const authenticateToken = require('../authMiddleware');
 
-router.post('/user/:userId/follow', async (req, res) => {
-    const followerId = 1;
+//1. 팔로우
+router.post('/users/:userId/follow', authenticateToken, async (req, res) => {
+    const followerId = req.user.userId;
     const followingId = Number(req.params.userId);
 
     try{
@@ -69,8 +71,9 @@ router.post('/user/:userId/follow', async (req, res) => {
     }
 });
 
-router.delete('/user/:userId/follow', async (req, res) => {
-    const followerId = 1;
+//2. 언팔로우
+router.delete('/users/:userId/follow', authenticateToken, async (req, res) => {
+    const followerId = req.user.userId;
     const followingId = Number(req.params.userId);
 
     try{
@@ -97,4 +100,7 @@ router.delete('/user/:userId/follow', async (req, res) => {
     }
 });
 
+//3. 좋아요
+
+//4. 좋아요취소
 module.exports = router;

@@ -1,6 +1,18 @@
+const express = require('express');
+const router = express.Router();
+const pool = require('../config/db');
+const authenticateToken = require('../authMiddleware');
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+const JWT_SECRET = "secret_key";     //이후 .env에 보관
+const JWT_OPTIONS = {
+    expiresIn: '1h'
+}
+
 //1. 회원가입
 
-app.post("/users/signup", async (req, res) => {
+router.post("/users/signup", async (req, res) => {
     try{
         const { email, username, name, password } = req.body;
         const userInfo = { email, username, name, password };
@@ -79,7 +91,7 @@ app.post("/users/signup", async (req, res) => {
 //=======================================================
 //2. 로그인 기능
 
-app.post("/users/login", async (req, res) => {
+router.post("/users/login", async (req, res) => {
     try{
         const { username, password } = req.body;
 
@@ -145,7 +157,7 @@ app.post("/users/login", async (req, res) => {
 //=======================================================
 //3. 내 프로필 조회
 
-app.get("/users/me", authenticateToken, async (req, res) => {
+router.get("/users/me", authenticateToken, async (req, res) => {
     try{
         const userId = req.user.userId;
         console.log(req.user.userId);
@@ -200,7 +212,7 @@ app.get("/users/me", authenticateToken, async (req, res) => {
 //=======================================================
 //4. 내 프로필 수정
 
-app.patch("/users/me", authenticateToken, async(req, res) => {
+router.patch("/users/me", authenticateToken, async(req, res) => {
     try{
         const userId = req.user.userId;
         const { bio, location, profileImageUrl, bannerImageUrl, name, birthDate } = req.body;
@@ -284,7 +296,7 @@ app.patch("/users/me", authenticateToken, async(req, res) => {
 //=======================================================
 //5. 다른 사용자 프로필 조회
 
-app.get("/users/:userId", authenticateToken, async (req, res) => {
+router.get("/users/:userId", authenticateToken, async (req, res) => {
     try{
         const myId = req.user.userId;
         const userId = req.params.userId;
@@ -346,7 +358,7 @@ app.get("/users/:userId", authenticateToken, async (req, res) => {
 //6. 다른 사용자 검색
 
 
-app.get("/users", async(req, res) => {
+router.get("/users", async(req, res) => {
     try{
         const { keyword } = req.query;
         const offset = limit * (page-1);
@@ -374,3 +386,5 @@ app.get("/users", async(req, res) => {
         });
     }
 })
+
+module.exports = router;

@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require("../config/db");
 const authenticateToken = require("../authMiddleware");
 
+//게시글 작성
 router.post("/",authenticateToken, async (req, res) => {
   try {
     const content = req.body.content;
@@ -35,8 +36,8 @@ router.post("/",authenticateToken, async (req, res) => {
 
 module.exports = router;
 
-
-router. get("/",async(req, res)=>{
+//게시글 목록 조회
+router.get("/",async(req, res)=>{
   const [rows]=await pool.query(`
     SELECT
       p.post_id,
@@ -48,6 +49,7 @@ router. get("/",async(req, res)=>{
     FROM posts p
     JOIN users u
       ON p.user_id=u.user_id
+    WHERE p.deleted_at IS NULL
     ORDER BY p.created_at DESC
     
  `);
@@ -65,6 +67,7 @@ router. get("/",async(req, res)=>{
 
 });
 
+//게시글 상세 조회
 router.get("/:postId", async (req, res) => {
  try{
    const postId = req.params.postId;
@@ -76,11 +79,13 @@ router.get("/:postId", async (req, res) => {
     u.username,
     p.content,
     p.view_count,
-    p.created_at
+    p.created_at,
+    p.edited_at
   FROM posts p
   JOIN users u
     ON p.user_id = u.user_id
   WHERE p.post_id = ?
+    AND p.deleted_at IS NULL
 `, [postId]);
 
   const post= rows[0];
@@ -97,7 +102,8 @@ router.get("/:postId", async (req, res) => {
     username: post.username,
     content: post.content,
     viewCount: post.view_count,
-    createdAt: post.created_at
+    createdAt: post.created_at,
+    editedAt: post.edited_at
   });
 }catch(error){
   console.error(error);
@@ -173,4 +179,42 @@ router.patch("/:postId", authenticateToken, async (req, res) => {
     message: "게시글 수정 실패"
   });
 }
+});
+
+//게시글 삭제
+router.delete("/:postId", authenticateToken, async (req, res) => {
+  try {
+    const postId = req.params.postId;
+    const userId = req.user.userId;
+    const [rows] = await pool.query(
+      "SELECT * FROM posts WHERE post_id = ?",
+      [postId]
+    );
+
+    const post = rows[0];
+
+    if (!post) {
+      return res.status(404).json({
+        message: "게시글을 찾을 수 없습니다."
+      });
+    }
+
+    if (post.user_id !== userId) {
+      return res.status(403).json({
+        message: "게시글을 삭제할 권한이 없습니다."
+      });
+    }
+
+    await pool.query(
+      "UPDATE posts SET deleted_at = NOW() WHERE post_id = ?",
+      [postId]
+    );
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "게시글 삭제 실패"
+    });
+  }
 });

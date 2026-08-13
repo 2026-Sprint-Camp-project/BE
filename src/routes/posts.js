@@ -3,13 +3,14 @@ const router = express.Router();
 const pool = require("../config/db");
 const authenticateToken = require("../authMiddleware");
 
-router.post("/", async (req, res) => {
+router.post("/",authenticateToken, async (req, res) => {
   try {
-    const { userId, content } = req.body;
+    const content = req.body.content;
+    const userId=req.user.userId;
 
-    if (!userId || !content) {
+    if (!content) {
       return res.status(400).json({
-        message: "userId와 content는 필수입니다."
+        message: "내용을 입력해주세요."
       });
     }
 
@@ -144,8 +145,26 @@ router.patch("/:postId", authenticateToken, async (req, res) => {
         [content, postId]
       );
 
+      const [updatedRows] = await pool.query(`
+        SELECT
+          post_id,
+          user_id,
+          content,
+          created_at,
+          edited_at
+        FROM posts
+        WHERE post_id = ?`,
+        [postId]
+      );
+
+      const updatedPost = updatedRows[0];
+
       res.status(200).json({
-        message: "게시글 수정 성공"
+        postId: updatedPost.post_id,
+        userId: updatedPost.user_id,
+        content: updatedPost.content,
+        createdAt: updatedPost.created_at,
+        editedAt: updatedPost.edited_at
       });
 } catch(error){
   console.error(error);

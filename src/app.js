@@ -1,4 +1,3 @@
-const postsRouter = require("./routes/posts");
 const path = require("path");
 require("dotenv").config({
   path: path.resolve(__dirname, "../.env")
@@ -6,6 +5,7 @@ require("dotenv").config({
 
 const express = require("express");
 const pool = require("./config/db");
+const postsRouter = require("./routes/posts");
 
 const app = express();
 const PORT = process.env.PORT || 3000;

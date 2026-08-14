@@ -1,6 +1,9 @@
 const jwt = require("jsonwebtoken");
 
-const JWT_SECRET = process.env.JWT_SECRET || "secret_key";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET 환경변수가 설정되지 않았습니다.");
+}
 
 const authenticateToken = (req, res, next) => {
     //"Bearer <토큰문자열>" 형태의 Authorization 헤더 가져오기

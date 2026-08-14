@@ -4,7 +4,10 @@ const pool = require('../config/db');
 const authenticateToken = require('../authMiddleware');
 const bcrypt = require('bcryptjs');
 const jwt = require("jsonwebtoken");
-const JWT_SECRET = "secret_key";     //이후 .env에 보관
+const JWT_SECRET = process.env.JWT_SECRET;     //이후 .env에 보관
+if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET 환경변수가 설정되지 않았습니다.");
+}
 const JWT_OPTIONS = {
     expiresIn: '1h'
 }
@@ -166,7 +169,7 @@ router.get("/users/me", authenticateToken, async (req, res) => {
         //토큰의 user_id 갖는 사용자 정보 가져오기
         
         if (!user) {
-            return res.status(404).json({
+            return res.status(401).json({
                 "message": "사용자를 찾을 수 없습니다."
             });
         }
@@ -213,6 +216,16 @@ router.patch("/users/me", authenticateToken, async(req, res) => {
     try{
         const userId = req.user.userId;
         const { bio, location, profileImageUrl, bannerImageUrl, name, birthDate } = req.body;
+
+        const [[user]] = await pool.query(`
+            SELECT user_id FROM users WHERE user_id = ?`, [userId]);
+        //토큰의 user_id 갖는 사용자 정보 가져오기
+        
+        if (!user) {
+            return res.status(401).json({
+                "message": "사용자를 찾을 수 없습니다."
+            });
+        }
 
         const fields = [];
         const value = [];
@@ -306,7 +319,7 @@ router.get("/users/:userId", authenticateToken, async (req, res) => {
         //토큰의 user_id 갖는 사용자 정보 가져오기
         
         if (!user) {
-            return res.status(404).json({
+            return res.status(401).json({
                 "message": "사용자를 찾을 수 없습니다."
             });
         }
@@ -394,10 +407,15 @@ router.patch("/users/me/privacy", authenticateToken, async (req, res) => {
         const userId = req.user.userId;
         const newPrivacy = req.body.isPrivate;
 
-        if (!userId) {
+        const [[user]] = await pool.query(`
+            SELECT user_id
+            FROM users WHERE user_id = ?`, [userId]);
+        //토큰의 user_id 갖는 사용자 정보 가져오기
+        
+        if (!user) {
             return res.status(401).json({
-                "message": "인증되지 않은 사용자입니다."
-            })
+                "message": "사용자를 찾을 수 없습니다."
+            });
         }
         
         await pool.query(`
@@ -427,19 +445,13 @@ router.patch("/users/me/settings/password", authenticateToken, async (req, res) 
         const userId = req.user.userId;
         const newPassword = req.body.newPassword;
 
-        if(!userId) {
-            return res.status(401).json({
-                "message": "인증되지 않은 사용자입니다."
-            });
-        }
-
-        const [user] = await pool.query(`
+        const [[user]] = await pool.query(`
             SELECT user_id FROM users WHERE user_id = ?`, [userId]);
-        //토큰 내용의 사용자 있는지 검사
-
-        if(!user || user.length === 0) {
+        //토큰의 user_id 갖는 사용자 정보 가져오기
+        
+        if (!user) {
             return res.status(401).json({
-                "message": "인증되지 않은 사용자입니다."
+                "message": "사용자를 찾을 수 없습니다."
             });
         }
 
@@ -482,10 +494,14 @@ router.patch("/users/me/settings/email", authenticateToken, async (req, res) => 
         const userId = req.user.userId;
         const newEmail = req.body.newEmail;
 
-        if (!userId) {
+        const [[user]] = await pool.query(`
+            SELECT user_id FROM users WHERE user_id = ?`, [userId]);
+        //토큰의 user_id 갖는 사용자 정보 가져오기
+        
+        if (!user) {
             return res.status(401).json({
-                "message": "인증되지 않은 사용자입니다."
-            })
+                "message": "사용자를 찾을 수 없습니다."
+            });
         }
 
         const [[{ isEmail }]] = await pool.query(`SELECT EXISTS (SELECT 1 FROM users WHERE email = ?) AS isEmail`, [newEmail])
@@ -522,10 +538,14 @@ router.patch("/users/me/settings/username", authenticateToken, async (req, res) 
         const userId = req.user.userId;
         const newUsername = req.body.newUsername;
 
-        if (!userId) {
+        const [[user]] = await pool.query(`
+            SELECT user_id FROM users WHERE user_id = ?`, [userId]);
+        //토큰의 user_id 갖는 사용자 정보 가져오기
+        
+        if (!user) {
             return res.status(401).json({
-                "message": "인증되지 않은 사용자입니다."
-            })
+                "message": "사용자를 찾을 수 없습니다."
+            });
         }
 
         const [[{ isUsername }]] = await pool.query(`SELECT EXISTS (SELECT 1 FROM users WHERE username = ?) AS isUsername`, [newUsername])
@@ -563,11 +583,6 @@ router.post("/users/me/settings/verification", authenticateToken, async (req, re
         const userId = req.user.userId;
         const password = req.body.password;
 
-        if(!userId) {
-            return res.status(401).json({
-                "message": "인증되지 않은 사용자입니다."
-            });
-        }
 
         if(!password){
             return res.status(400).json({
@@ -575,17 +590,15 @@ router.post("/users/me/settings/verification", authenticateToken, async (req, re
             })
         }
 
-        const [rows] = await pool.query(`
+        const [[user]] = await pool.query(`
             SELECT user_id, password FROM users WHERE user_id = ?`, [userId]);
-        //토큰 내용의 사용자 있는지 검사
-        const user = rows[0]
-
-        if(!rows || rows.length === 0) {
+        //토큰의 user_id 갖는 사용자 정보 가져오기
+        
+        if (!user) {
             return res.status(401).json({
-                "message": "인증되지 않은 사용자입니다."
+                "message": "사용자를 찾을 수 없습니다."
             });
         }
-        //사용자 존재하는지 검사
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {

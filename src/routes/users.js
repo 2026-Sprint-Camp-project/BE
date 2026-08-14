@@ -66,7 +66,7 @@ router.post("/users/signup", async (req, res) => {
 
             res.status(201).json({
                 "message": "회원가입 성공",
-                "createdAt": newUser.createdAt,
+                "createdAt": newUser.created_at,
                 "token": {
                     "accessToken": accessToken,
                     //"refreshToken": refreshToken
@@ -239,7 +239,7 @@ router.patch("/users/me", authenticateToken, async(req, res) => {
             value.push(name);
         }
         if(birthDate !== undefined){
-            fields.push("birthDate = ?");
+            fields.push("birth_date = ?");
             value.push(birthDate);
         }
         //수정사항이 있다면(undefined가 아니라면) 필드명과 값을 각각 리스트에 추가
@@ -252,7 +252,7 @@ router.patch("/users/me", authenticateToken, async(req, res) => {
         }
 
         value.push(userId); //WHERE 에 사용하기 위해 추가
-        sql = `UPDATE users SET ${fields.join(', ')} WHERE user_id = ?`
+        const sql = `UPDATE users SET ${fields.join(', ')} WHERE user_id = ?`
         await pool.query(sql, value);
         //field에 있는 값
 
@@ -357,7 +357,6 @@ router.get("/users/:userId", authenticateToken, async (req, res) => {
 router.get("/users", async(req, res) => {
     try{
         const { keyword } = req.query;
-        const offset = limit * (page-1);
         console.log(`검색어: ${keyword}`);
 
         if (!keyword) {

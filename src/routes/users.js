@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require("jsonwebtoken");
 const JWT_SECRET = "secret_key";     //이후 .env에 보관
 const JWT_OPTIONS = {
-    expiresIn: '10h'
+    expiresIn: '1h'
 }
 //=======================================================
 //1. 회원가입

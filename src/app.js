@@ -28,7 +28,6 @@ app.use(cors({
   credentials: true
 }));
 
-
 app.use(express.json());
 app.use("/posts", postsRouter);
 app.use("/", relationRouter);

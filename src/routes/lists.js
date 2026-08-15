@@ -12,22 +12,15 @@ router.post("/users/me/lists", authenticateToken, async (req, res) => {
         const { listName, description, isPrivate } = req.body;
         const requrirements = { listName, isPrivate };
 
-        if(!userId) {
-            return res.status(401).json({
-                "message": "인증되지 않은 사용자입니다."
-            });
-        }
-
-        const [rows] = await pool.query(`
+        const [[user]] = await pool.query(`
             SELECT user_id FROM users WHERE user_id = ?`, [userId]);
-        const user = rows[0]
-
-        if(!rows || rows.length === 0) {
+        //토큰의 user_id 갖는 사용자 정보 가져오기
+        
+        if (!user) {
             return res.status(401).json({
                 "message": "인증되지 않은 사용자입니다."
             });
         }
-        //사용자 존재하는지 검사
 
         
         if(!listName) {
@@ -77,22 +70,16 @@ router.get("/users/me/lists", authenticateToken, async (req, res) => {
     try{
         const userId = req.user.userId;
 
-        if(!userId) {
-            return res.status(401).json({
-                "message": "인증되지 않은 사용자입니다."
-            });
-        }
-
-        const [rows] = await pool.query(`
+        const [[user]] = await pool.query(`
             SELECT user_id, is_private, username FROM users WHERE user_id = ?`, [userId]);
-        const user = rows[0]
-
-        if(!rows || rows.length === 0) {
+        //토큰의 user_id 갖는 사용자 정보 가져오기
+        
+        if (!user) {
             return res.status(401).json({
                 "message": "인증되지 않은 사용자입니다."
             });
         }
-        //사용자 존재하는지 검사
+        
 
         const [ lists ] = await pool.query(`
             SELECT * FROM lists WHERE user_id = ?`, [userId]);
@@ -122,22 +109,15 @@ router.patch("/users/me/lists/:listId", authenticateToken, async (req, res) => {
         const { listId } = req.params;
         const { listName, isPrivate, description } = req.body;
 
-        if(!userId) {
-            return res.status(401).json({
-                "message": "인증되지 않은 사용자입니다."
-            });
-        }
-
-        const [rows] = await pool.query(`
+        const [[user]] = await pool.query(`
             SELECT user_id FROM users WHERE user_id = ?`, [userId]);
-        const user = rows[0]
-
-        if(!rows || rows.length === 0) {
+        //토큰의 user_id 갖는 사용자 정보 가져오기
+        
+        if (!user) {
             return res.status(401).json({
                 "message": "인증되지 않은 사용자입니다."
             });
         }
-        //사용자 존재하는지 검사
 
         const [[list]] = await pool.query(`
             SELECT list_id, list_name, description, is_private, user_id 
@@ -228,22 +208,15 @@ router.delete("/users/me/lists/:listId", authenticateToken, async (req, res) => 
         const userId = req.user.userId;
         const { listId } = req.params;
 
-        if(!userId) {
-            return res.status(401).json({
-                "message": "인증되지 않은 사용자입니다."
-            });
-        }
-
-        const [rows] = await pool.query(`
+        const [[user]] = await pool.query(`
             SELECT user_id FROM users WHERE user_id = ?`, [userId]);
-        const user = rows[0]
-
-        if(!rows || rows.length === 0) {
+        
+        if (!user) {
             return res.status(401).json({
                 "message": "인증되지 않은 사용자입니다."
             });
         }
-        //사용자 존재하는지 검사
+        //토큰 검사하기
 
 
         const [ result ] = await pool.query(`
@@ -283,22 +256,15 @@ router.post("/lists/:listId/members", authenticateToken, async (req, res) => {
         const { listId } = req.params;
         const { userId } = req.body;
 
-        if(!myId) {
-            return res.status(401).json({
-                "message": "인증되지 않은 사용자입니다."
-            });
-        }
-
         const [[me]] = await pool.query(`
             SELECT user_id FROM users WHERE user_id = ?`, [myId]);
         
-
-        if(!me) {
+        if (!me) {
             return res.status(401).json({
                 "message": "인증되지 않은 사용자입니다."
             });
         }
-        //유저 토큰 확인
+        //토큰 정보 검사
     
         const [[ user ]] = await pool.query(`
             SELECT user_id FROM users WHERE user_id = ?`, [userId]);
@@ -347,7 +313,7 @@ router.post("/lists/:listId/members", authenticateToken, async (req, res) => {
         return res.status(201).json({
             "listId": listId,
             "userId": userId,
-            "added_at": addedAt
+            "addedAt": addedAt
         })
 
     }
@@ -368,21 +334,15 @@ router.delete("/lists/:listId/members/:memberId", authenticateToken, async (req,
         const userId = req.user.userId;
         const { listId, memberId } = req.params;
         
-        if(!userId) {
-            return res.status(401).json({
-                "message": "인증되지 않은 사용자입니다."
-            });
-        }
-
         const [[user]] = await pool.query(`
             SELECT user_id FROM users WHERE user_id = ?`, [userId]);
-
-        if(!user) {
+        
+        if (!user) {
             return res.status(401).json({
                 "message": "인증되지 않은 사용자입니다."
             });
         }
-        //유저 토큰 확인
+        //토큰 검사하기
     
 /*
         const [[ member ]] = await pool.query(`
@@ -446,21 +406,15 @@ router.get("/lists/:listId/members", authenticateToken, async (req, res) => {
         const { listId } = req.params;
 
         
-        if(!userId) {
-            return res.status(401).json({
-                "message": "인증되지 않은 사용자입니다."
-            });
-        }
-
         const [[user]] = await pool.query(`
             SELECT user_id FROM users WHERE user_id = ?`, [userId]);
-
-        if(!user) {
+        
+        if (!user) {
             return res.status(401).json({
                 "message": "인증되지 않은 사용자입니다."
             });
         }
-        //유저 토큰 확인
+        //토큰 검사하기
 
 
         const [[ list ]] = await pool.query(`
@@ -513,21 +467,15 @@ router.get("/users/:userId/lists", authenticateToken, async (req, res) => {
         const myId = req.user.userId;
         const { userId } = req.params;
 
-        if(!myId) {
-            return res.status(401).json({
-                "message": "인증되지 않은 사용자입니다."
-            });
-        }
-
         const [[me]] = await pool.query(`
-            SELECT user_id, is_private, username FROM users WHERE user_id = ?`, [myId]);
-
-        if(!me) {
+            SELECT user_id FROM users WHERE user_id = ?`, [myId]);
+        
+        if (!me) {
             return res.status(401).json({
                 "message": "인증되지 않은 사용자입니다."
             });
         }
-        //사용자 토큰 검사
+        //토큰 검사하기
 
 
         const [[user]] = await pool.query(`

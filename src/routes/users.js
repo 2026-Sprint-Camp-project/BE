@@ -160,7 +160,6 @@ router.post("/users/login", async (req, res) => {
 router.get("/users/me", authenticateToken, async (req, res) => {
     try{
         const userId = req.user.userId;
-        console.log(req.user.userId);
         
 
         const [[user]] = await pool.query(`
@@ -269,8 +268,9 @@ router.patch("/users/me", authenticateToken, async(req, res) => {
         await pool.query(sql, value);
         //field에 있는 값
 
-        const [[user]] = await pool.query(`
-            SELECT * FROM users WHERE user_id = ?`, [userId]);
+        const [[newUser]] = await pool.query(`
+            SELECT user_id, email, username, name, birth_date, bio, location, profile_image_url, banner_image_url, created_at
+            FROM users WHERE user_id = ?`, [userId]);
 
 
         return res.status(200).json({
@@ -278,16 +278,16 @@ router.patch("/users/me", authenticateToken, async(req, res) => {
 
             "user": {
                 "userId": userId,
-                "email": user.email,
-                "username": user.username,
-                "name": user.name,
-                "birthDate": user.birth_date,
-                "bio": user.bio,
-                "location": user.location,
-                "profileImageUrl": user.profile_image_url,
-                "bannerImageUrl": user.banner_image_url,
-                "isPrivate": user.is_private,
-                "createdAt": user.created_at
+                "email": newUser.email,
+                "username": newUser.username,
+                "name": newUser.name,
+                "birthDate": newUser.birth_date,
+                "bio": newUser.bio,
+                "location": newUser.location,
+                "profileImageUrl": newUser.profile_image_url,
+                "bannerImageUrl": newUser.banner_image_url,
+                "isPrivate": newUser.is_private,
+                "createdAt": newUser.created_at
             }
         });
         //수정된 프로필 반환
@@ -310,7 +310,6 @@ router.get("/users/:userId", authenticateToken, async (req, res) => {
     try{
         const myId = req.user.userId;
         const userId = req.params.userId;
-        console.log(req.params.userId);
         
 
         const [[user]] = await pool.query(`
@@ -370,7 +369,6 @@ router.get("/users/:userId", authenticateToken, async (req, res) => {
 router.get("/users", async(req, res) => {
     try{
         const { keyword } = req.query;
-        console.log(`검색어: ${keyword}`);
 
         if (!keyword) {
             return res.status(400).json({

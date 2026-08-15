@@ -27,7 +27,6 @@ const authenticateToken = (req, res, next) => {
             });
         }
 
-        console.log("decoded 결과: ", decoded);
         //decoded에는 payload 내용 +a 가 들어있음
         req.user = decoded;
 

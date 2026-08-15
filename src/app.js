@@ -4,6 +4,7 @@ require("dotenv").config({
 });
 
 const express = require("express");
+const cors = require("cors");
 const pool = require("./config/db");
 const postsRouter = require("./routes/posts");
 const relationRouter = require("./routes/relation");
@@ -12,6 +13,15 @@ const listsRouter = require("./routes/lists")
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+const authenticateToken = require("./authMiddleware");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+const JWT_SECRET = "secret_key";     //이후 .env에 보관
+const JWT_OPTIONS = {
+    expiresIn: '1h'
+}
 
 app.use(cors({
   origin: "http://localhost:5173",

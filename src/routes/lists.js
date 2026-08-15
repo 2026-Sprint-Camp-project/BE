@@ -18,7 +18,7 @@ router.post("/users/me/lists", authenticateToken, async (req, res) => {
         
         if (!user) {
             return res.status(401).json({
-                "message": "사용자를 찾을 수 없습니다."
+                "message": "인증되지 않은 사용자입니다."
             });
         }
 
@@ -76,7 +76,7 @@ router.get("/users/me/lists", authenticateToken, async (req, res) => {
         
         if (!user) {
             return res.status(401).json({
-                "message": "사용자를 찾을 수 없습니다."
+                "message": "인증되지 않은 사용자입니다."
             });
         }
         
@@ -115,7 +115,7 @@ router.patch("/users/me/lists/:listId", authenticateToken, async (req, res) => {
         
         if (!user) {
             return res.status(401).json({
-                "message": "사용자를 찾을 수 없습니다."
+                "message": "인증되지 않은 사용자입니다."
             });
         }
 

@@ -37,7 +37,9 @@ router.post("/",authenticateToken, async (req, res) => {
 module.exports = router;
 
 //게시글 목록 조회
-router.get("/",async(req, res)=>{
+router.get("/", authenticateToken, async (req, res) => {
+  const keyword = req.query.keyword;
+  const userId = req.user.userId;
   const [rows]=await pool.query(`
     SELECT
       p.post_id,
@@ -45,21 +47,48 @@ router.get("/",async(req, res)=>{
       u.username,
       p.content,
       p.view_count,
-      p.created_at
+      p.created_at,
+
+      EXISTS(
+        SELECT 1
+        FROM likes l
+        WHERE l.post_id = p.post_id
+          AND l.user_id = ?
+      ) AS liked,
+
+      EXISTS(
+        SELECT 1
+        FROM bookmarks b
+        WHERE b.post_id = p.post_id
+          AND b.user_id = ?
+      ) AS bookmarked,
+
+    EXISTS(
+      SELECT 1
+      FROM reposts r
+      WHERE r.post_id = p.post_id
+        AND r.user_id = ?
+    ) AS reposted
+
     FROM posts p
     JOIN users u
       ON p.user_id=u.user_id
+
     WHERE p.deleted_at IS NULL
+      AND (? IS NULL OR p.content LIKE ?)
     ORDER BY p.created_at DESC
-    
- `);
+  `, [userId, userId, userId, keyword || null, `%${keyword}%`]);  
+ 
   const posts = rows.map((post) => ({
     postId: post.post_id,
     userId: post.user_id,
     username: post.username,
     content: post.content,
     viewCount: post.view_count,
-    createdAt: post.created_at
+    createdAt: post.created_at,
+    liked: Boolean(post.liked),
+    bookmarked: Boolean(post.bookmarked),
+    reposted: Boolean(post.reposted)
   }));
   res.status(200).json({
     posts

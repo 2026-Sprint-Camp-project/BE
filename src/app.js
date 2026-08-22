@@ -24,7 +24,7 @@ const JWT_OPTIONS = {
 }
 
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: ["http://localhost:5173", "https://fe-alpha-topaz.vercel.app"],
   credentials: true
 }));
 

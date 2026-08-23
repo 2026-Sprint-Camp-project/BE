@@ -153,7 +153,27 @@ router.get("/:postId", async (req, res) => {
     p.content,
     p.view_count,
     p.created_at,
-    p.edited_at
+    p.edited_at,
+
+    (
+      SELECT COUNT(*)
+      FROM likes l
+      WHERE l.post_id = p.post_id
+    ) AS like_count,
+
+    (
+      SELECT COUNT(*)
+      FROM bookmarks b
+      WHERE b.post_id = p.post_id
+    ) AS bookmark_count,
+
+    (
+      SELECT COUNT(*)
+      FROM reposts r
+      WHERE r.post_id = p.post_id
+    ) AS repost_count
+
+
   FROM posts p
   JOIN users u
     ON p.user_id = u.user_id
@@ -177,7 +197,10 @@ router.get("/:postId", async (req, res) => {
     content: post.content,
     viewCount: post.view_count,
     createdAt: post.created_at,
-    editedAt: post.edited_at
+    editedAt: post.edited_at,
+    likeCount: post.like_count,
+    bookmarkCount: post.bookmark_count,
+    repostCount: post.repost_count
   });
 }catch(error){
   console.error(error);

@@ -76,6 +76,12 @@ router.get("/", authenticateToken, async (req, res) => {
           AND l.user_id = ?
       ) AS liked,
 
+      (
+        SELECT COUNT(*)
+        FROM likes l2
+        WHERE l2.post_id = p.post_id
+      ) AS like_count,
+
       EXISTS(
         SELECT 1
         FROM bookmarks b
@@ -83,12 +89,25 @@ router.get("/", authenticateToken, async (req, res) => {
           AND b.user_id = ?
       ) AS bookmarked,
 
+      (
+        SELECT COUNT(*)
+        FROM bookmarks b2
+        WHERE b2.post_id = p.post_id
+      ) AS bookmark_count,
+
+
     EXISTS(
       SELECT 1
       FROM reposts r
       WHERE r.post_id = p.post_id
         AND r.user_id = ?
-    ) AS reposted
+    ) AS reposted,
+
+    (
+      SELECT COUNT(*)
+      FROM reposts r2
+      WHERE r2.post_id = p.post_id
+    ) AS repost_count
 
     FROM posts p
     JOIN users u
@@ -109,7 +128,10 @@ router.get("/", authenticateToken, async (req, res) => {
     createdAt: post.created_at,
     liked: Boolean(post.liked),
     bookmarked: Boolean(post.bookmarked),
-    reposted: Boolean(post.reposted)
+    reposted: Boolean(post.reposted),
+    likeCount: post.like_count, 
+    bookmarkCount: post.bookmark_count,
+    repostCount: post.repost_count
   }));
   res.status(200).json({
     posts

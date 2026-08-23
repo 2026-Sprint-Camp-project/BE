@@ -8,6 +8,7 @@ router.post("/",authenticateToken, async (req, res) => {
   try {
     const content = req.body.content;
     const userId=req.user.userId;
+    const replyToPostId = req.body.replyToPostId;
 
     if (!content) {
       return res.status(400).json({
@@ -15,14 +16,32 @@ router.post("/",authenticateToken, async (req, res) => {
       });
     }
 
+    if (replyToPostId) {
+      const [parentRows] = await pool.query(
+        `SELECT post_id
+        FROM posts
+        WHERE post_id = ?
+          AND deleted_at IS NULL`,
+        [replyToPostId]
+      );
+
+      if (parentRows.length === 0) {
+        return res.status(404).json({
+          message: "원본 게시글을 찾을 수 없습니다."
+        });
+      }
+}
+
     const [result] = await pool.query(
-      "INSERT INTO posts (user_id, content) VALUES (?, ?)",
-      [userId, content]
+      `INSERT INTO posts (user_id, content, reply_to_post_id)
+      VALUES (?, ?, ?)`,
+      [userId, content, replyToPostId || null]
     );
 
     res.status(201).json({
       message: "게시글 작성 성공",
-      postId: result.insertId
+      postId: result.insertId,
+      replyToPostId: replyToPostId || null
     });
 
   } catch (error) {

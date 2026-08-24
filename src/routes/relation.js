@@ -566,7 +566,25 @@ router.get("/users/me/bookmarks", authenticateToken, async (req, res) => {
                 u.username,
                 p.content,
                 p.created_at,
-                b.bookmarked_at
+                b.bookmarked_at,
+
+                (
+                    SELECT COUNT(*)
+                    FROM likes l
+                    WHERE l.post_id = p.post_id
+                ) AS like_count,
+
+                (
+                    SELECT COUNT(*)
+                    FROM bookmarks b2
+                    WHERE b2.post_id = p.post_id
+                ) AS bookmark_count,
+
+                (
+                    SELECT COUNT(*)
+                    FROM reposts r
+                    WHERE r.post_id = p.post_id
+                ) AS repost_count
             FROM bookmarks b
             JOIN posts p
               ON b.post_id = p.post_id
@@ -601,7 +619,10 @@ router.get("/users/me/bookmarks", authenticateToken, async (req, res) => {
                 username: bookmark.username,
                 content: bookmark.content,
                 createdAt: bookmark.created_at,
-                bookmarkedAt: bookmark.bookmarked_at
+                bookmarkedAt: bookmark.bookmarked_at,
+                likeCount: bookmark.like_count,
+                bookmarkCount: bookmark.bookmark_count,
+                repostCount: bookmark.repost_count,
             })),
             nextCursor: hasNext
                 ? bookmarks[bookmarks.length - 1].bookmarked_at

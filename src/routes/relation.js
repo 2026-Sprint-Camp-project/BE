@@ -584,7 +584,21 @@ router.get("/users/me/bookmarks", authenticateToken, async (req, res) => {
                     SELECT COUNT(*)
                     FROM reposts r
                     WHERE r.post_id = p.post_id
-                ) AS repost_count
+                ) AS repost_count,
+
+                EXISTS(
+                    SELECT 1
+                    FROM likes l3
+                    WHERE l3.post_id = p.post_id
+                        AND l3.user_id = ?
+                ) AS liked,
+
+                EXISTS(
+                    SELECT 1
+                    FROM reposts r2
+                    WHERE r2.post_id = p.post_id
+                        AND r2.user_id = ?
+                ) AS reposted
             FROM bookmarks b
             JOIN posts p
               ON b.post_id = p.post_id
@@ -593,7 +607,7 @@ router.get("/users/me/bookmarks", authenticateToken, async (req, res) => {
             WHERE b.user_id = ?
         `;
 
-        const params = [userId];
+        const params = [userId, userId, userId];
 
         if (cursor) {
             sql += ` AND b.bookmarked_at < ?`;
@@ -620,6 +634,8 @@ router.get("/users/me/bookmarks", authenticateToken, async (req, res) => {
                 content: bookmark.content,
                 createdAt: bookmark.created_at,
                 bookmarkedAt: bookmark.bookmarked_at,
+                liked: Boolean(bookmark.liked),
+                reposted: Boolean(bookmark.reposted),
                 likeCount: bookmark.like_count,
                 bookmarkCount: bookmark.bookmark_count,
                 repostCount: bookmark.repost_count,

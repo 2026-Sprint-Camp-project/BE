@@ -68,6 +68,7 @@ router.get("/", authenticateToken, async (req, res) => {
       p.content,
       p.view_count,
       p.created_at,
+      p.reply_to_post_id,
 
       EXISTS(
         SELECT 1
@@ -126,6 +127,7 @@ router.get("/", authenticateToken, async (req, res) => {
     content: post.content,
     viewCount: post.view_count,
     createdAt: post.created_at,
+    replyToPostId: post.reply_to_post_id,
     liked: Boolean(post.liked),
     bookmarked: Boolean(post.bookmarked),
     reposted: Boolean(post.reposted),
@@ -154,6 +156,7 @@ router.get("/:postId", async (req, res) => {
     p.view_count,
     p.created_at,
     p.edited_at,
+    
 
     (
       SELECT COUNT(*)

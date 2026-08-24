@@ -4,10 +4,12 @@ require("dotenv").config({
 });
 
 const express = require("express");
+const cors = require("cors");
 const pool = require("./config/db");
 const postsRouter = require("./routes/posts");
 const relationRouter = require("./routes/relation");
 const usersRouter = require("./routes/users");
+const listsRouter = require("./routes/lists")
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,11 +23,16 @@ const JWT_OPTIONS = {
     expiresIn: '1h'
 }
 
+app.use(cors({
+  origin: ["http://localhost:5173", "https://fe-alpha-topaz.vercel.app"],
+  credentials: true
+}));
 
 app.use(express.json());
 app.use("/posts", postsRouter);
 app.use("/", relationRouter);
 app.use("/", usersRouter);
+app.use("/", listsRouter);
 
 app.get("/", (req, res) => {
   res.status(200).json({

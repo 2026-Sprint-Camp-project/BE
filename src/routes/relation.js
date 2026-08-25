@@ -630,7 +630,7 @@ router.get("/users/me/bookmarks", authenticateToken, async (req, res) => {
             WHERE b.user_id = ?
         `;
  
-        const params = [userId];
+        const params = [userId, userId, userId];
  
         if (cursor) {
             sql += ` AND b.bookmarked_at < ?`;

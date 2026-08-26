@@ -511,4 +511,131 @@ router.get("/users/:userId/lists", authenticateToken, async (req, res) => {
 })
 
 
+
+//=======================================================
+//21. 리스트 사용자의 게시글 목록 조회
+
+router.get("/lists/:listId/posts", authenticateToken, async(req, res) => {
+    try{
+        const {listId} = req.params;
+        const myId = req.user.userid;
+
+        const [[results]] = await pool.query(`
+            SELECT 
+                l.user_id AS userId,
+                u.is_private AS userPrivate, 
+                l.is_private AS listPrivate
+            FROM lists l JOIN users u ON l.user_id=u.user_id
+            WHERE l.list_id = ?`, [listId]);
+        
+        //공개 여부를 알 수 없을 때
+        if(!results){
+            return res.status(404).json({
+                "message": "리스트를 찾을 수 없습니다."
+            });
+        }
+
+        //나의 프로필이 아니고 프로필이 비공개 상태일 경우 게시물 비공개
+        if(results.userId !== myId && results.userPrivate === 1){
+            return res.status(403).json({
+                "message": "비공개 계정입니다."
+            });
+        }
+
+        //리스트가 비공개 상태인 경우
+        if(results.listPrivate === 1) {
+            return res.status(403).json({
+                "message": "비공개 리스트입니다."
+            })
+        }
+
+        const [rows]=await pool.query(`
+            SELECT
+            p.post_id, p.user_id, p.content, p.view_count,
+            p.created_at, p.reply_to_post_id,
+            u.username, u.name,
+
+            EXISTS(
+                SELECT 1 FROM likes l
+                WHERE l.post_id = p.post_id AND l.user_id = ?
+            ) AS liked,
+
+            (
+                SELECT COUNT(*) FROM likes l2 
+                WHERE l2.post_id = p.post_id
+            ) AS like_count,
+
+            EXISTS(
+                SELECT 1 FROM bookmarks b 
+                WHERE b.post_id = p.post_id AND b.user_id = ?
+            ) AS bookmarked,
+
+            (
+                SELECT COUNT(*) FROM bookmarks b2
+                WHERE b2.post_id = p.post_id
+            ) AS bookmark_count,
+
+
+            EXISTS(
+                SELECT 1 FROM reposts r
+                WHERE r.post_id = p.post_id AND r.user_id = ?
+            ) AS reposted,
+
+            (
+                SELECT COUNT(*) FROM reposts r2
+                WHERE r2.post_id = p.post_id
+            ) AS repost_count
+
+            FROM (
+                SELECT p.post_id, p.created_at AS feed_created_at
+                FROM posts p
+                JOIN list_members lm ON p.user_id=lm.member_id
+                WHERE lm.list_id = ? AND p.deleted_at IS NULL
+                
+                UNION
+                
+                SELECT r.post_id, p.created_at AS feed_created_at
+                FROM reposts r
+                JOIN posts p ON r.post_id = p.post_id
+                JOIN list_members lm ON r.user_id = lm.member_id
+                WHERE lm.list_id = ? AND p.deleted_at IS NULL
+            ) AS feed
+            JOIN posts p ON feed.post_id = p.post_id
+            JOIN users u ON p.user_id = u.user_id
+
+            ORDER BY p.created_at DESC
+        `, [myId, myId, myId, listId, listId]);
+
+
+        const posts = rows.map((post) => ({
+            postId: post.post_id,
+            userId: post.user_id,
+            username: post.username,
+            name: post.name,
+            content: post.content,
+            viewCount: post.view_count,
+            createdAt: post.created_at,
+            replyToPostId: post.reply_to_post_id,
+            liked: Boolean(post.liked),
+            bookmarked: Boolean(post.bookmarked),
+            reposted: Boolean(post.reposted),
+            likeCount: post.like_count, 
+            bookmarkCount: post.bookmark_count,
+            repostCount: post.repost_count
+        }));
+
+        res.status(200).json({
+            posts
+        });
+
+    }
+    catch(error){
+        console.error(error);
+        return res.status(500).json({
+            "message": "서버 에러가 발생했습니다."
+        });
+    }
+})
+
+
 module.exports = router;

@@ -4,12 +4,28 @@ const pool = require('../config/db');
 const authenticateToken = require('../authMiddleware');
 const bcrypt = require('bcryptjs');
 const jwt = require("jsonwebtoken");
-const JWT_SECRET = process.env.JWT_SECRET;     //이후 .env에 보관
+const JWT_SECRET = process.env.JWT_SECRET;
 if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET 환경변수가 설정되지 않았습니다.");
 }
 const JWT_OPTIONS = {
     expiresIn: '1h'
+}
+//엑세스 토큰 만드는 함수
+function generateAccessToken(userId) {
+  return jwt.sign(
+    { userid: userId }, 
+    process.env.ACCESS_TOKEN_SECRET, 
+    { expiresIn: "1h" }
+  );
+}
+//리프레시 토큰 만드는 함수
+function generateRefreshToken(userId) {
+    return jwt.sign(
+        { userid: userId }, 
+        process.env.JWT_SECRET,
+        { expiresIn: "14d" }
+    );
 }
 //=======================================================
 //1. 회원가입
@@ -61,18 +77,16 @@ router.post("/users/signup", async (req, res) => {
                 //username으로 가입한 사용자 검색해 newUser로 가져오기
             
 
-            const payload = {
-                userId: newUser.user_id
-            };
-            const accessToken = jwt.sign(payload, JWT_SECRET, JWT_OPTIONS);
-            //payload 설정 및 accessToken 발급
+            const accessToken = generateAccessToken(newUser.user_id);
+            const refreshToken = generateRefreshToken(newUser.user_id);
+            //payload 설정 및 accessToken, refreshToken 발급
 
             res.status(201).json({
                 "message": "회원가입 성공",
                 "createdAt": newUser.created_at,
                 "token": {
                     "accessToken": accessToken,
-                    //"refreshToken": refreshToken
+                    "refreshToken": refreshToken
                 },
                 "user": {
                     "userId": newUser.user_id,
@@ -123,18 +137,16 @@ router.post("/users/login", async (req, res) => {
         //DB와 비밀번호 대조 - 비밀번호가 틀린 경우
 
 
-        console.log("DB에서 가져온 user_id: ", user.user_id); //디버깅용
-        const payload = {
-            userId: user.user_id
-        };
-        const accessToken = jwt.sign(payload, JWT_SECRET, JWT_OPTIONS)
+
+        const accessToken = generateAccessToken(user.user_id)
+        const refreshToken = generateRefreshToken(user.user_id)
         //payload 설정 및 엑세스 토큰 발급
 
         return res.status(200).json({
             "message": "로그인 성공",
             "token": {
                 "accessToken": accessToken,
-                //"refreshToken": refreshToken                
+                "refreshToken": refreshToken                
             },
             "user": {
                 "userId": user.user_id,
@@ -620,6 +632,297 @@ router.post("/users/me/settings/verification", authenticateToken, async (req, re
         });
     }
 })
+
+//=======================================================
+//20. 특정 사용자의 게시글 목록 조회
+
+router.get("/users/:userId/posts", authenticateToken, async(req, res) => {
+    try{
+        const userId = req.params.userId;
+        const type = req.query.type || "else";
+        const myId = req.user.userid;
+
+        const [[isPrivate]] = await pool.query(`
+            SELECT is_private AS isPrivate FROM users WHERE user_id = ?`, [userId]);
+
+        //나의 프로필이 아니고 프로필이 비공개 상태일 경우 게시물 비공개
+        if(userId !== myId && isPrivate === 1){
+            return res.status(403).json({
+                "message": "비공개 계정입니다."
+            });
+        }
+        
+        let rows = []
+
+        //type이 reposts일 경우 재게시된 게시물 가져오기
+        if(type === "reposts") {
+            [rows]=await pool.query(`
+                SELECT
+                p.post_id, p.user_id, p.content, p.view_count,
+                p.created_at, p.reply_to_post_id,
+                u.username, u.name,
+
+                EXISTS(
+                    SELECT 1 FROM likes l
+                    WHERE l.post_id = p.post_id AND l.user_id = ?
+                ) AS liked,
+
+                (
+                    SELECT COUNT(*) FROM likes l2 
+                    WHERE l2.post_id = p.post_id
+                ) AS like_count,
+
+                EXISTS(
+                    SELECT 1 FROM bookmarks b 
+                    WHERE b.post_id = p.post_id AND b.user_id = ?
+                ) AS bookmarked,
+
+                (
+                    SELECT COUNT(*) FROM bookmarks b2
+                    WHERE b2.post_id = p.post_id
+                ) AS bookmark_count,
+
+
+                EXISTS(
+                    SELECT 1 FROM reposts r
+                    WHERE r.post_id = p.post_id AND r.user_id = ?
+                ) AS reposted,
+
+                (
+                    SELECT COUNT(*) FROM reposts r2
+                    WHERE r2.post_id = p.post_id
+                ) AS repost_count
+
+                FROM posts p
+                JOIN users u ON p.user_id=u.user_id
+                JOIN reposts r ON p.post_id = r.post_id
+
+                WHERE p.deleted_at IS NULL 
+                AND u.user_id = ? AND r.user_id = ?
+                ORDER BY p.created_at DESC
+            `, [myId, myId, myId, userId, userId]);
+
+        }
+
+        //type이 replies일 경우 다른 게시물에 달린 답글 가져오기
+        else if(type === "replies"){
+            [rows]=await pool.query(`
+                SELECT
+                p.post_id, p.user_id, p.content, p.view_count,
+                p.created_at, p.reply_to_post_id,
+                u.username, u.name,
+
+                EXISTS(
+                    SELECT 1 FROM likes l
+                    WHERE l.post_id = p.post_id AND l.user_id = ?
+                ) AS liked,
+
+                (
+                    SELECT COUNT(*) FROM likes l2 
+                    WHERE l2.post_id = p.post_id
+                ) AS like_count,
+
+                EXISTS(
+                    SELECT 1 FROM bookmarks b 
+                    WHERE b.post_id = p.post_id AND b.user_id = ?
+                ) AS bookmarked,
+
+                (
+                    SELECT COUNT(*) FROM bookmarks b2
+                    WHERE b2.post_id = p.post_id
+                ) AS bookmark_count,
+
+
+                EXISTS(
+                    SELECT 1 FROM reposts r
+                    WHERE r.post_id = p.post_id AND r.user_id = ?
+                ) AS reposted,
+
+                (
+                    SELECT COUNT(*) FROM reposts r2
+                    WHERE r2.post_id = p.post_id
+                ) AS repost_count
+
+                FROM posts p
+                JOIN users u ON p.user_id=u.user_id
+
+                WHERE p.deleted_at IS NULL 
+                AND u.user_id = ? AND p.reply_to_post_id IS NOT NULL
+                ORDER BY p.created_at DESC
+            `, [myId, myId, myId, userId]);
+        }
+
+        //type이 post이거나 다른 문자열일 경우 작성한 게시물 가져오기
+        else if (type === "posts") {
+            [rows]=await pool.query(`
+                SELECT
+                p.post_id, p.user_id, p.content, p.view_count,
+                p.created_at, p.reply_to_post_id,
+                u.username, u.name,
+
+                EXISTS(
+                    SELECT 1 FROM likes l
+                    WHERE l.post_id = p.post_id AND l.user_id = ?
+                ) AS liked,
+
+                (
+                    SELECT COUNT(*) FROM likes l2 
+                    WHERE l2.post_id = p.post_id
+                ) AS like_count,
+
+                EXISTS(
+                    SELECT 1 FROM bookmarks b 
+                    WHERE b.post_id = p.post_id AND b.user_id = ?
+                ) AS bookmarked,
+
+                (
+                    SELECT COUNT(*) FROM bookmarks b2
+                    WHERE b2.post_id = p.post_id
+                ) AS bookmark_count,
+
+
+                EXISTS(
+                    SELECT 1 FROM reposts r
+                    WHERE r.post_id = p.post_id AND r.user_id = ?
+                ) AS reposted,
+
+                (
+                    SELECT COUNT(*) FROM reposts r2
+                    WHERE r2.post_id = p.post_id
+                ) AS repost_count
+
+                FROM posts p
+                JOIN users u ON p.user_id=u.user_id
+
+                WHERE p.deleted_at IS NULL 
+                AND u.user_id = ? AND p.reply_to_post_id IS NULL
+                ORDER BY p.created_at DESC
+            `, [myId, myId, myId, userId]);
+        }
+
+        else {
+            const [rows] = await pool.query(`
+                SELECT
+                p.post_id, p.user_id, p.content, p.view_count,
+                p.created_at, p.reply_to_post_id,
+                u.username, u.name,
+
+                EXISTS(
+                    SELECT 1 FROM likes l
+                    WHERE l.post_id = p.post_id AND l.user_id = ?
+                ) AS liked,
+
+                (
+                    SELECT COUNT(*) FROM likes l2
+                    WHERE l2.post_id = p.post_id
+                ) AS like_count,
+
+                EXISTS(
+                    SELECT 1 FROM bookmarks b
+                    WHERE b.post_id = p.post_id
+                    AND b.user_id = ?
+                ) AS bookmarked,
+
+                (
+                    SELECT COUNT(*) FROM bookmarks b2
+                    WHERE b2.post_id = p.post_id
+                ) AS bookmark_count,
+
+
+                EXISTS(
+                SELECT 1 FROM reposts r
+                WHERE r.post_id = p.post_id
+                    AND r.user_id = ?
+                ) AS reposted,
+
+                (
+                SELECT COUNT(*) FROM reposts r2
+                WHERE r2.post_id = p.post_id
+                ) AS repost_count
+
+
+            FROM (
+                SELECT p.post_id, p.created_at AS feed_created_at
+                FROM posts p
+                WHERE p.user_id = ? AND p.deleted_at IS NULL
+                
+                UNION
+                
+                SELECT r.post_id, p.created_at AS feed_created_at
+                FROM reposts r
+                JOIN posts p ON r.post_id = p.post_id
+                WHERE r.user_id = ? AND p.deleted_at IS NULL
+            ) AS feed
+
+            JOIN posts p ON feed.post_id = p.post_id
+            JOIN users u ON p.user_id = u.user_id
+
+            ORDER BY p.created_at DESC
+            `, [userId, userId, userId, userId, userId]); 
+        }
+
+        const posts = rows.map((post) => ({
+            postId: post.post_id,
+            userId: post.user_id,
+            username: post.username,
+            name: post.name,
+            content: post.content,
+            viewCount: post.view_count,
+            createdAt: post.created_at,
+            replyToPostId: post.reply_to_post_id,
+            liked: Boolean(post.liked),
+            bookmarked: Boolean(post.bookmarked),
+            reposted: Boolean(post.reposted),
+            likeCount: post.like_count, 
+            bookmarkCount: post.bookmark_count,
+            repostCount: post.repost_count
+        }));
+
+        res.status(200).json({
+            posts
+        });
+
+    }
+    catch(error){
+        console.error(error);
+        return res.status(500).json({
+            "message": "서버 에러가 발생했습니다."
+        });
+    }
+})
+
+
+
+//=======================================================
+//22. 토큰 재발급
+
+router.post("/users/refresh", async(req,res) =>{
+    const {refreshToken} = req.body;
+
+    if(!refreshToken){
+        return res.status(401).json({
+            "message": "리프레시 토큰이 없습니다."
+        })
+    }
+
+    try{
+        const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+
+        const newAccessToken = generateAccessToken(decoded.userId);
+        return res.status(200).json({
+            "accessToken": newAccessToken
+        });
+    }
+    catch(error){
+        console.error(error);
+        return res.status(401).json({
+            "message": "유효하지 않거나 만료된 토큰입니다."
+        });
+    }
+})
+
+
+
 
 
 module.exports = router;
